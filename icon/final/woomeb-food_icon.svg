@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<rect width="1024" height="1024" rx="224" fill="#D6392B"/>
+<rect x="196" y="320" width="632" height="392" rx="30" fill="none" stroke="#FFF4EA" stroke-width="30"/>
+<polyline points="210,338 512,556 814,338" fill="none" stroke="#FFF4EA" stroke-width="30" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="512" y="668" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="132" font-weight="800" fill="#FFF4EA" text-anchor="middle" letter-spacing="1">Food</text>
+</svg>
