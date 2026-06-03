@@ -188,7 +188,7 @@ const DB=[{"n":"기와집","r":"부산","g":"중구","o":"부산우체국","c":"
 const UPDATED="2026-06-03";
 const REGIONS=["부산","울산","경남","전체"];
 const PALETTE=["#d2453b","#e8632c","#0e7c86","#3f51b5","#7e57c2","#2e9e5b","#b5762e","#d6457f","#7a8b27","#0a6ebd","#7a8896"];
-const state={region:"부산",edSel:[],q:"",cat:"전체",gu:"전체",sort:"def",view:"list",radius:0,loc:null};
+const state={region:"부산",edSel:[],q:"",catSel:[],guSel:[],sort:"def",view:"list",radius:0,loc:null};
 
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>(s||"").toLowerCase().replace(/\s+/g,"");
@@ -238,11 +238,14 @@ function ddOpen(o){document.getElementById("dd").classList.toggle("open",o);docu
 
 function tally(key){const m=new Map();rows().forEach(r=>{const v=r[key];if(v)m.set(v,(m.get(v)||0)+1)});return [...m.entries()].sort((a,b)=>b[1]-a[1])}
 function buildChips(elId,key,stateKey,label){
-  const el=document.getElementById(elId);
-  let h=`<span class="chiplabel">${label}</span><button class="chip${state[stateKey]==="전체"?" on":""}" data-v="전체">전체<i class="ct">${rows().length}</i></button>`;
-  tally(key).forEach(([v,n])=>h+=`<button class="chip${state[stateKey]===v?" on":""}" data-v="${esc(v)}">${esc(v)}<i class="ct">${n}</i></button>`);
+  const el=document.getElementById(elId);const sel=state[stateKey];
+  let h=`<span class="chiplabel">${label}</span><button class="chip${sel.length===0?" on":""}" data-v="전체">전체<i class="ct">${rows().length}</i></button>`;
+  tally(key).forEach(([v,n])=>h+=`<button class="chip${sel.indexOf(v)>=0?" on":""}" data-v="${esc(v)}">${esc(v)}<i class="ct">${n}</i></button>`);
   el.innerHTML=h;
-  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;state[stateKey]=b.dataset.v;[...el.children].forEach(c=>c.classList&&c.classList.toggle("on",c===b));render()};
+  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const v=b.dataset.v;
+    if(v==="전체")state[stateKey]=[];
+    else{const i=sel.indexOf(v);if(i>=0)sel.splice(i,1);else sel.push(v)}
+    buildChips(elId,key,stateKey,label);render()};
 }
 function buildEdChips(){
   const el=document.getElementById("eds");
@@ -251,7 +254,7 @@ function buildEdChips(){
     {v:"전체",lab:"전체",n:cnt(()=>true)},
     {v:"2024",lab:"2024",n:cnt(r=>r.ed.indexOf("2024")>=0)},
     {v:"2025",lab:"2025",n:cnt(r=>r.ed.indexOf("2025")>=0)},
-    {v:"both",lab:"동시 선정",n:cnt(r=>r.ed.length===2)},
+    {v:"both",lab:"24·25",n:cnt(r=>r.ed.length===2)},
   ];
   let h=`<span class="chiplabel">발행</span>`;
   opts.forEach(o=>{const on=o.v==="전체"?state.edSel.length===0:state.edSel.indexOf(o.v)>=0;
@@ -260,14 +263,14 @@ function buildEdChips(){
   el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const v=b.dataset.v;
     if(v==="전체")state.edSel=[];
     else{const i=state.edSel.indexOf(v);if(i>=0)state.edSel.splice(i,1);else state.edSel.push(v)}
-    buildEdChips();buildTabs();buildChips("cats","c","cat","종류");buildChips("gus","g","gu","지역");render();
+    buildEdChips();buildTabs();buildChips("cats","c","catSel","종류");buildChips("gus","g","guSel","지역");render();
     document.getElementById("subtitle").textContent=subtitle()};
 }
 function filtered(){
   const q=norm(state.q);
   let list=rows().filter(r=>{
-    if(state.cat!=="전체"&&r.c!==state.cat)return false;
-    if(state.gu!=="전체"&&r.g!==state.gu)return false;
+    if(state.catSel.length&&state.catSel.indexOf(r.c)<0)return false;
+    if(state.guSel.length&&state.guSel.indexOf(r.g)<0)return false;
     if(state.radius>0&&state.loc){const dk=distKm(r);if(dk==null||dk>state.radius)return false}
     if(q){const hay=norm(r.n+r.a+r.m+r.c+r.g+r.o+r.d);if(!hay.includes(q))return false}
     return true;
@@ -318,9 +321,9 @@ function subtitle(){const n=rows().length;
   const edtxt=state.edSel.length===0?"2024·2025":state.edSel.map(s=>s==="both"?"동시수록":s+"년판").join("+");
   const rtxt=state.region==="전체"?"부산·울산·경남":state.region;return `${rtxt} 우체국 추천 맛집 ${n}곳 · ${edtxt} · 종류·지역으로 찾아보세요`}
 
-function switchRegion(reg){state.region=reg;state.cat="전체";state.gu="전체";state.q="";document.getElementById("q").value="";
+function switchRegion(reg){state.region=reg;state.catSel=[];state.guSel=[];state.q="";document.getElementById("q").value="";
   document.getElementById("subtitle").textContent=subtitle();
-  buildTabs();buildEdChips();buildChips("cats","c","cat","종류");buildChips("gus","g","gu","지역");
+  buildTabs();buildEdChips();buildChips("cats","c","catSel","종류");buildChips("gus","g","guSel","지역");
   if(mapReady)try{map.closePopup()}catch(e){}
   render();window.scrollTo({top:0,behavior:"instant"});setToolsH()}
 function setView(v){state.view=v;document.querySelectorAll("#viewtog button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
@@ -350,7 +353,7 @@ document.getElementById("footer").innerHTML=`<div class="foot-src">
 </div>
 <b>우슐랭(우체국+미슐랭)</b> · 부산지방우정청 「우체국 추천 맛집가이드」 2024(발행 2024.05)·2025(발행 2025.03) 판본 통합 · 부산·울산·경남 37개 우체국 직원 추천<br>각 식당의 <b>2024/2025</b> 배지는 해당 연도 가이드 수록 여부 · 공개 자료 정리본으로 실제와 다를 수 있어요(방문 전 영업시간·휴무 확인) · 종류 자동분류 · 좌표 © Kakao · 지도 © OpenStreetMap·CARTO · 갱신 ${UPDATED}`;
 document.getElementById("subtitle").textContent=subtitle();
-buildTabs();buildEdChips();renderDD();buildChips("cats","c","cat","종류");buildChips("gus","g","gu","지역");render();setToolsH();
+buildTabs();buildEdChips();renderDD();buildChips("cats","c","catSel","종류");buildChips("gus","g","guSel","지역");render();setToolsH();
 </script>
 </body>
 </html>
