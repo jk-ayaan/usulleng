@@ -213,14 +213,14 @@ const DB=__DATA__;
 const UPDATED="__UPDATED__";
 const REGIONS=["부산","울산","경남","전체"];
 const PALETTE=["#d2453b","#e8632c","#0e7c86","#3f51b5","#7e57c2","#2e9e5b","#b5762e","#d6457f","#7a8b27","#0a6ebd","#7a8896"];
-const state={region:"부산",ed:"전체",q:"",cat:"전체",gu:"전체",sort:"def",view:"list",radius:0,loc:null};
+const state={region:"부산",edSel:[],q:"",cat:"전체",gu:"전체",sort:"def",view:"list",radius:0,loc:null};
 
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>(s||"").toLowerCase().replace(/\s+/g,"");
 const catColor=(()=>{const m={};return k=>{if(!(k in m)){m[k]=PALETTE[Object.keys(m).length%PALETTE.length]}return m[k]}})();
 const regOf=(r,reg)=>reg==="전체"||r.r===reg;
-const edOf=(r,ed)=>ed==="전체"||r.ed.indexOf(ed)>=0;
-const rows=()=>DB.filter(r=>regOf(r,state.region)&&edOf(r,state.ed));
+const edMatch=r=>state.edSel.length===0||state.edSel.some(s=>s==="both"?r.ed.length===2:r.ed.indexOf(s)>=0);
+const rows=()=>DB.filter(r=>regOf(r,state.region)&&edMatch(r));
 
 const PIN='<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.3-7-11a7 7 0 0114 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
 const CLK='<svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -271,13 +271,22 @@ function buildChips(elId,key,stateKey,label){
 }
 function buildEdChips(){
   const el=document.getElementById("eds");
-  const opts=[["전체","전체"],["2024","2024"],["2025","2025"]];
+  const cnt=f=>DB.filter(r=>regOf(r,state.region)&&f(r)).length;
+  const opts=[
+    {v:"전체",lab:"전체",n:cnt(()=>true)},
+    {v:"2024",lab:"2024",n:cnt(r=>r.ed.indexOf("2024")>=0)},
+    {v:"2025",lab:"2025",n:cnt(r=>r.ed.indexOf("2025")>=0)},
+    {v:"both",lab:"동시 선정",n:cnt(r=>r.ed.length===2)},
+  ];
   let h=`<span class="chiplabel">발행</span>`;
-  opts.forEach(([v,lab])=>{const n=DB.filter(r=>regOf(r,state.region)&&edOf(r,v)).length;
-    h+=`<button class="chip${state.ed===v?" on":""}" data-v="${v}">${lab}<i class="ct">${n}</i></button>`});
+  opts.forEach(o=>{const on=o.v==="전체"?state.edSel.length===0:state.edSel.indexOf(o.v)>=0;
+    h+=`<button class="chip${on?" on":""}" data-v="${o.v}">${o.lab}<i class="ct">${o.n}</i></button>`});
   el.innerHTML=h;
-  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;state.ed=b.dataset.v;
-    buildEdChips();buildTabs();buildChips("cats","c","cat","종류");buildChips("gus","g","gu","지역");render()};
+  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const v=b.dataset.v;
+    if(v==="전체")state.edSel=[];
+    else{const i=state.edSel.indexOf(v);if(i>=0)state.edSel.splice(i,1);else state.edSel.push(v)}
+    buildEdChips();buildTabs();buildChips("cats","c","cat","종류");buildChips("gus","g","gu","지역");render();
+    document.getElementById("subtitle").textContent=subtitle()};
 }
 function filtered(){
   const q=norm(state.q);
@@ -329,8 +338,10 @@ function render(){const list=filtered();document.getElementById("count").innerHT
   else document.getElementById("grid").innerHTML=list.length?list.map(card).join(""):`<div class="empty"><div class="em">🔍</div><p>조건에 맞는 맛집이 없어요.<br>검색어·필터·지역·발행연도를 바꿔보세요.</p></div>`}
 
 function setToolsH(){document.documentElement.style.setProperty("--toolsH",(document.querySelector(".tools").offsetHeight+document.querySelector(".hero").offsetHeight)+"px")}
-function buildTabs(){document.getElementById("tabs").innerHTML=REGIONS.map(k=>{const n=DB.filter(r=>regOf(r,k)&&edOf(r,state.ed)).length;return `<button class="tab${k===state.region?" on":""}" data-s="${k}">${k}<span class="tn">${n}</span></button>`}).join("")}
-function subtitle(){const n=rows().length;const edtxt=state.ed==="전체"?"2024·2025":state.ed+"년판";const rtxt=state.region==="전체"?"부산·울산·경남":state.region;return `${rtxt} 우체국 추천 맛집 ${n}곳 · ${edtxt} · 종류·지역으로 찾아보세요`}
+function buildTabs(){document.getElementById("tabs").innerHTML=REGIONS.map(k=>{const n=DB.filter(r=>regOf(r,k)&&edMatch(r)).length;return `<button class="tab${k===state.region?" on":""}" data-s="${k}">${k}<span class="tn">${n}</span></button>`}).join("")}
+function subtitle(){const n=rows().length;
+  const edtxt=state.edSel.length===0?"2024·2025":state.edSel.map(s=>s==="both"?"동시수록":s+"년판").join("+");
+  const rtxt=state.region==="전체"?"부산·울산·경남":state.region;return `${rtxt} 우체국 추천 맛집 ${n}곳 · ${edtxt} · 종류·지역으로 찾아보세요`}
 
 function switchRegion(reg){state.region=reg;state.cat="전체";state.gu="전체";state.q="";document.getElementById("q").value="";
   document.getElementById("subtitle").textContent=subtitle();
