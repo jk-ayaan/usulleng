@@ -23,6 +23,22 @@ ed_counts = Counter(("2024" in r["ed"], "2025" in r["ed"]) for r in data)
 updated = datetime.date.today().isoformat()
 print("총", total, "· 지역", dict(reg_counts), "· 2024:", sum(1 for r in data if "2024" in r["ed"]), "2025:", sum(1 for r in data if "2025" in r["ed"]))
 
+# ── Google AdSense ── 승인 후 아래 3개만 채우면 자동으로 실광고로 전환됩니다.
+ADSENSE_CLIENT = ""   # 게시자 ID, 예: "ca-pub-1234567890123456"
+AD_SLOT_SIDE   = ""   # PC 좌측 세로광고 단위 슬롯 ID (애드센스 > 광고 단위에서 발급)
+AD_SLOT_BOTTOM = ""   # 모바일 하단 가로광고 단위 슬롯 ID
+
+def _adsense_head():
+    return f'<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={ADSENSE_CLIENT}" crossorigin="anonymous"></script>' if ADSENSE_CLIENT else ""
+def _ad(slot, style, fmt=""):
+    if not (ADSENSE_CLIENT and slot):
+        return '<div class="adph">광고 영역<br><span>Google AdSense</span></div>'
+    extra = f' data-ad-format="{fmt}" data-full-width-responsive="true"' if fmt else ""
+    return (f'<ins class="adsbygoogle" style="{style}" data-ad-client="{ADSENSE_CLIENT}" data-ad-slot="{slot}"{extra}></ins>'
+            '<script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>')
+AD_SIDE = _ad(AD_SLOT_SIDE, "display:inline-block;width:160px;height:600px")
+AD_BOTTOM = _ad(AD_SLOT_BOTTOM, "display:block", "auto")
+
 HTML = r"""<!doctype html>
 <html lang="ko">
 <head>
@@ -38,6 +54,7 @@ HTML = r"""<!doctype html>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+__ADSENSE_HEAD__
 <style>
 :root{--bg:#f4f1ee;--card:#fff;--ink:#221a17;--sub:#6f6258;--line:#eadfd7;--brand:#d6392b;--brand2:#e8632c;--cream:#fff4ea;--shadow:0 6px 22px rgba(80,40,30,.09);--safe-t:env(safe-area-inset-top);--safe-b:env(safe-area-inset-bottom)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -166,6 +183,15 @@ footer b{color:var(--sub)}
 .foot-src{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin-bottom:9px}
 .foot-src a{display:inline-flex;align-items:center;gap:5px;color:var(--brand);font-weight:700;text-decoration:none;background:var(--cream);border:1px solid #f3dcca;padding:5px 11px;border-radius:999px}
 .foot-src svg{width:13px;height:13px}
+.adph{border:1.5px dashed #e3d5ca;border-radius:14px;background:#fff;color:#bcae9f;font-weight:800;font-size:12px;text-align:center;padding:16px 10px;line-height:1.55}
+.adph span{font-weight:600;font-size:11px;color:#cdc2b6}
+.adbottom{display:none;max-width:1180px;margin:8px auto 0;padding:4px 16px}
+.adside{display:none}
+@media(max-width:1499px){.adbottom{display:block}}
+@media(min-width:1500px){
+  .adside{display:block;position:fixed;top:128px;left:calc((100vw - 1180px)/4 - 80px);width:160px;z-index:600}
+  .adside .adph{height:600px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:16px}
+}
 </style>
 </head>
 <body>
@@ -204,6 +230,8 @@ footer b{color:var(--sub)}
 <div class="maphint" id="maphint"></div>
 <button class="locate" id="locate" hidden aria-label="내 위치"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3.2M12 18.8V22M2 12h3.2M18.8 12H22"/><circle cx="12" cy="12" r="8"/></svg></button>
 <div class="top" id="top"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+<aside class="adside" aria-label="광고">__AD_SIDE__</aside>
+<div class="adbottom" aria-label="광고">__AD_BOTTOM__</div>
 <footer id="footer"></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -383,7 +411,8 @@ buildTabs();buildEdChips();renderDD();buildChips("cats","c","catSel","종류");b
 </body>
 </html>"""
 
-out = (HTML.replace("__DATA__", data_js).replace("__TOTAL__", str(total)).replace("__UPDATED__", updated))
+out = (HTML.replace("__DATA__", data_js).replace("__TOTAL__", str(total)).replace("__UPDATED__", updated)
+           .replace("__ADSENSE_HEAD__", _adsense_head()).replace("__AD_SIDE__", AD_SIDE).replace("__AD_BOTTOM__", AD_BOTTOM))
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(out)
 print(f"index.html 생성 ({len(out):,} bytes)")
